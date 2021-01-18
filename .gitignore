@@ -1,0 +1,9 @@
+/node_modules
+/build
+.npm-debug.log
+*.DS_Store
+.vscode
+privateKey
+yarn.lock
+package-lock.json
+.secret

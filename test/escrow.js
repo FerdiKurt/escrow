@@ -11,10 +11,10 @@ function toWEI(arg) {
 
 contract('Escrow Plan', (accounts) => {
     let escrow;
-    const [lawyer, payer, recipient] = accounts
+    const [lawyer, payer, receiver] = accounts
 
-    const escrowId = 12345
-    const nonExistingEscrowPlan = 666
+    const escrowId = '0x7dd304bc2f6b14047aa5455a5fa686db1f93879e8eac5e1209a81261fbf3af4c'
+    const nonExistingEscrowPlanId = '0x7dd304bc2f6b14047aa5455a5fa686db1f93879e8eac5e1209a81261fbf3af4f'
     const planName = 'Escrow Plan 1'
     const requiredAmount = toWEI('2', 'ether')
     const invalidAmount = toWEI('1', 'ether')
@@ -24,11 +24,13 @@ contract('Escrow Plan', (accounts) => {
     });
 
     it('should NOT add escrow plan if not lawyer ', async () => {
+        // console.log(payer)
+        // console.log(receiver)
         await expectRevert(
             escrow.addEscrowPlan(
                 planName,
                 payer,
-                recipient,
+                receiver,
                 requiredAmount,
                 escrowId,
                 { from: payer }
@@ -40,17 +42,19 @@ contract('Escrow Plan', (accounts) => {
         const tx = await escrow.addEscrowPlan(
             planName,
             payer,
-            recipient,
+            receiver,
             requiredAmount,
             escrowId,
             { from: lawyer }
         )
 
         await expectEvent(tx, 'EscrowPlanCreated', {
-            _planName: planName,
-            _payer: payer,
-            _recipient: recipient,
-            _id: toBN(escrowId)
+            escrowPlanName: planName,
+            escrowId,
+            payer,
+            receiver,
+            requiredAmount,
+            state: toBN(1)
         })
     });
     it('should NOT add escrow plan if already exists ', async () => {
@@ -58,29 +62,29 @@ contract('Escrow Plan', (accounts) => {
             escrow.addEscrowPlan(
                 planName,
                 payer,
-                recipient,
+                receiver,
                 requiredAmount,
                 escrowId,
                 { from: lawyer }
             ),
-            'Existing Escrow!'
+            'Invalid State!'
         )
     });
 
     it('should NOT deposit ether for non existing escrow plan', async () => {
         await expectRevert(
             escrow.depositEther(
-                nonExistingEscrowPlan,
+                nonExistingEscrowPlanId,
                 { from: payer }
             ),
-            'Non-existing Escrow!'
+            'Invalid State!'
         )
     })
     it('should NOT deposit ether if not payer', async () => {
         await expectRevert(
             escrow.depositEther(
                 escrowId,
-                { from: recipient }
+                { from: receiver }
             ),
             "Only payer!"
         )
@@ -97,13 +101,14 @@ contract('Escrow Plan', (accounts) => {
     it('should DEPOSIT ether', async () => {
         const tx = await escrow.depositEther(
             escrowId,
-            { from: payer, value: requiredAmount}
+            { from: payer, value: requiredAmount }
         )
 
         await expectEvent(tx, 'EtherDeposited', { 
-            _id: toBN(escrowId),
-            _payer: payer,
-            _etherAmount: toBN(requiredAmount)
+            escrowId,
+            payer,
+            etherAmount: requiredAmount,
+            state: toBN(2)
         })
     })
     it('should NOT deposit ether if not pending transaction', async () => {
@@ -112,7 +117,7 @@ contract('Escrow Plan', (accounts) => {
                 escrowId,
                 { from: payer, value: requiredAmount }
             ),
-            'Only PENDING transactions!'
+            'Invalid State!'
         )
     })
 
@@ -120,7 +125,7 @@ contract('Escrow Plan', (accounts) => {
         await expectRevert(
             escrow.withdrawEther(
                 escrowId,
-                { from: recipient }
+                { from: receiver }
             ),
             'Only Lawyer!'
         )
@@ -129,18 +134,18 @@ contract('Escrow Plan', (accounts) => {
         await escrow.addEscrowPlan(
             planName,
             payer,
-            recipient,
+            receiver,
             requiredAmount,
-            100,
+            nonExistingEscrowPlanId,
             { from: lawyer }
         )
 
         await expectRevert(
             escrow.withdrawEther(
-                100,
+                nonExistingEscrowPlanId,
                 { from: lawyer }
             ),
-            'Only ACTIVE transactions!'
+            'Invalid State!'
         )
         
     });
@@ -154,14 +159,14 @@ contract('Escrow Plan', (accounts) => {
         )
 
         await expectEvent(tx, 'EtherWithdrawed', {
-            _id: toBN(escrowId),
-            _recipient: recipient,
-            _receivedAmount: toWEI('2', 'ether')
+            escrowId,
+            receiver,
+            receivedAmount: requiredAmount,
+            state: toBN(3)
         })
 
         const balanceAfter = await escrow.contractBalance()
         assert(balanceAfter == 0)
     })
-
 });
 

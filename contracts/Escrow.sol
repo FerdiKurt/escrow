@@ -26,8 +26,22 @@ contract EscrowContract is EscrowAbstract {
     * 
     * We will look at oracles later
     */
-    function idGenerator() external view onlyLawyer() returns (uint) {
-        return uint(keccak256(abi.encode(block.timestamp, block.difficulty)));
+    function idGenerator(
+        address payable _payer,
+        address payable _receiver,
+        uint _requiredAmount
+    )   external 
+        view 
+        onlyLawyer()
+        returns (bytes32) 
+    {
+        return keccak256(
+            abi.encode(
+                _payer, 
+                _receiver, 
+                _requiredAmount
+            )
+        );
     }
     
     /**
@@ -39,26 +53,33 @@ contract EscrowContract is EscrowAbstract {
     function addEscrowPlan(
         string memory _planName,
         address payable _payer,
-        address payable _recipient,
+        address payable _receiver,
         uint _requiredAmount,
-        uint _escrowId
-    ) external override onlyLawyer() {
-        require(plans[_escrowId].timestamp == 0, 'Existing Escrow!');
-        
-        // look at here: we are mutating storage, persistent action
+        bytes32 _escrowId
+    ) 
+        external 
+        override
+        onlyLawyer() 
+        inState(_escrowId, State.INACTIVE) 
+    {
         plans[_escrowId] = Escrow(
              _planName,
             _payer,
-            _recipient,
+            _receiver,
             _requiredAmount,
             _escrowId,
-            block.timestamp,
             State.PENDING
             );
         
-        required[_escrowId] = _requiredAmount;
-
-        emit EscrowPlanCreated(_planName, _payer, _recipient, _escrowId);
+        // event emitted
+        emit EscrowPlanCreated(
+            _planName, 
+            _escrowId, 
+            _payer, 
+            _receiver, 
+            _requiredAmount, 
+            State.PENDING
+        );
     }
     
     /**
@@ -66,24 +87,35 @@ contract EscrowContract is EscrowAbstract {
     * 
     * @param _escrowId required plan id for deposit ether
     */
-    function depositEther(uint _escrowId) external override payable {
-        require(plans[_escrowId].timestamp > 0, 'Non-existing Escrow!');
-        require(plans[_escrowId].state == State.PENDING, 'Only PENDING transactions!');
-       
+    function depositEther(bytes32 _escrowId) 
+        external 
+        override
+        payable 
+        inState(_escrowId, State.PENDING) 
+    {
         require(msg.sender == plans[_escrowId].payer, "Only payer!");
-        require(msg.value >= required[_escrowId], 'Invalid amount provided!');
+        require(
+            msg.value >= plans[_escrowId].requiredAmount, 
+            'Invalid amount provided!'
+        );
         
-        if (msg.value > required[_escrowId]) {
-            fulfilled[_escrowId] = required[_escrowId];
-            plans[_escrowId].payer.transfer(msg.value - required[_escrowId]);
+        if (msg.value > plans[_escrowId].requiredAmount) {
+            plans[_escrowId].payer.transfer(
+                msg.value - plans[_escrowId].requiredAmount
+            );
             
             plans[_escrowId].state = State.ACTIVE;
         }
-        
-        fulfilled[_escrowId] = required[_escrowId];
-        plans[_escrowId].state = State.ACTIVE;
 
-        emit EtherDeposited(_escrowId, msg.sender, required[_escrowId]);
+        plans[_escrowId].state = State.ACTIVE;
+        
+        // event emitted
+        emit EtherDeposited(
+            _escrowId, 
+            msg.sender, 
+            plans[_escrowId].requiredAmount, 
+            State.ACTIVE
+        );
     }
     
     /**
@@ -91,13 +123,22 @@ contract EscrowContract is EscrowAbstract {
     * 
     * @param _escrowId required plan id for withdraw ether
     */
-    function withdrawEther(uint _escrowId) external override onlyLawyer() {
-        require(plans[_escrowId].state == State.ACTIVE, 'Only ACTIVE transactions!');
-        
+    function withdrawEther(bytes32 _escrowId) 
+        external 
+        override
+        onlyLawyer() 
+        inState(_escrowId, State.ACTIVE) 
+    {
         plans[_escrowId].state = State.CLOSED;
-        plans[_escrowId].recipient.transfer(fulfilled[_escrowId]);
+        plans[_escrowId].receiver.transfer(plans[_escrowId].requiredAmount);
         
-        emit EtherWithdrawed(_escrowId, plans[_escrowId].recipient, required[_escrowId]);
+        // event emitted
+        emit EtherWithdrawed(
+            _escrowId, 
+            plans[_escrowId].receiver, 
+            plans[_escrowId].requiredAmount, 
+            State.CLOSED
+        );
     }
 
     /**

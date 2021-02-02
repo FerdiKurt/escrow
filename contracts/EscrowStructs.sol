@@ -2,15 +2,15 @@
 pragma solidity >=0.7.0 <0.8.0;
 
 contract EscrowStructs {
-    enum State { PENDING, ACTIVE, CLOSED }
+    // enum for state control
+    enum State { INACTIVE, PENDING, ACTIVE, CLOSED }
 
     struct Escrow {
         string planName;
         address payable payer;
-        address payable recipient;
+        address payable receiver;
         uint requiredAmount;
-        uint escrowId;
-        uint timestamp;
+        bytes32 escrowId;
         State state;
     }
 }

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity >=0.7.0 <0.8.0;
+pragma solidity >=0.8.0 <0.9.0;
 
 import './EscrowAbstract.sol';
-import "./SafeMath.sol";
 
-contract EscrowContract is EscrowAbstract {   
+contract Escrow is EscrowAbstract {   
     // after deployment of contract, msg.sender will be lawyer
     constructor() {
         lawyer = msg.sender;

@@ -1,5 +1,5 @@
 const { expectRevert, expectEvent } = require('@openzeppelin/test-helpers');
-const Escrow = artifacts.require('EscrowContract');
+const Escrow = artifacts.require('Escrow');
 
 function toBN(arg) {
     return web3.utils.toBN(arg)
@@ -20,7 +20,7 @@ contract('Escrow Plan', (accounts) => {
     const invalidAmount = toWEI('1', 'ether')
 
     before(async () => {
-        escrow = await Escrow.deployed();
+        escrow = await Escrow.new();
     });
 
     it('should NOT add escrow plan if not lawyer ', async () => {

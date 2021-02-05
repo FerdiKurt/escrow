@@ -1,3 +1,3 @@
 # Escrow
-Escrow contract example using lawyer as a trust entity.
+*Escrow contract example using lawyer as a trust entity.*
 
